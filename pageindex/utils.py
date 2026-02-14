@@ -1,5 +1,5 @@
 import tiktoken
-import openai
+import litellm
 import logging
 import os
 from datetime import datetime
@@ -17,30 +17,82 @@ import yaml
 from pathlib import Path
 from types import SimpleNamespace as config
 
-CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY")
+# Support multiple API key environment variables for different providers
+CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+# Configure LiteLLM to use environment variables for different providers
+# Users can set: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, etc.
+# See: https://docs.litellm.ai/docs/providers
 
 def count_tokens(text, model=None):
+    """
+    Count tokens in text using the appropriate tokenizer for the model.
+    Uses tiktoken for OpenAI models and LiteLLM's token counter for other providers.
+    """
     if not text:
         return 0
-    enc = tiktoken.encoding_for_model(model)
-    tokens = enc.encode(text)
-    return len(tokens)
+    
+    # Check if it's an OpenAI model (no prefix or openai/ prefix)
+    model_lower = model.lower() if model else ""
+    is_openai_model = (
+        not "/" in model or 
+        model_lower.startswith("openai/") or
+        model_lower.startswith("gpt-") or
+        model_lower.startswith("o1-") or
+        model_lower.startswith("o3-")
+    )
+    
+    if is_openai_model:
+        # Use tiktoken for OpenAI models
+        try:
+            # Strip openai/ prefix if present
+            clean_model = model.replace("openai/", "") if model else "gpt-4o"
+            enc = tiktoken.encoding_for_model(clean_model)
+            tokens = enc.encode(text)
+            return len(tokens)
+        except KeyError:
+            # Fallback to cl100k_base encoding for unknown OpenAI models
+            enc = tiktoken.get_encoding("cl100k_base")
+            tokens = enc.encode(text)
+            return len(tokens)
+    else:
+        # Use LiteLLM's token counter for other providers
+        try:
+            return litellm.token_counter(model=model, text=text)
+        except Exception:
+            # Fallback to approximate counting (4 chars per token)
+            return len(text) // 4
 
-def ChatGPT_API_with_finish_reason(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
+def ChatGPT_API_with_finish_reason(model, prompt, api_key=None, chat_history=None):
+    """
+    Synchronous chat completion API with finish reason tracking.
+    Uses LiteLLM to support multiple LLM providers.
+    
+    Args:
+        model: Model string (e.g., "gpt-4o", "claude-3-opus-20240229", "gemini/gemini-pro")
+        prompt: User prompt
+        api_key: API key (optional, uses environment variables if not provided)
+        chat_history: Previous conversation history
+    
+    Returns:
+        Tuple of (response_content, finish_reason)
+    """
     max_retries = 10
-    client = openai.OpenAI(api_key=api_key)
+    
+    # Build messages list
+    if chat_history:
+        messages = chat_history.copy()
+        messages.append({"role": "user", "content": prompt})
+    else:
+        messages = [{"role": "user", "content": prompt}]
+    
     for i in range(max_retries):
         try:
-            if chat_history:
-                messages = chat_history
-                messages.append({"role": "user", "content": prompt})
-            else:
-                messages = [{"role": "user", "content": prompt}]
-            
-            response = client.chat.completions.create(
+            response = litellm.completion(
                 model=model,
                 messages=messages,
                 temperature=0,
+                api_key=api_key,
             )
             if response.choices[0].finish_reason == "length":
                 return response.choices[0].message.content, "max_output_reached"
@@ -51,53 +103,80 @@ def ChatGPT_API_with_finish_reason(model, prompt, api_key=CHATGPT_API_KEY, chat_
             print('************* Retrying *************')
             logging.error(f"Error: {e}")
             if i < max_retries - 1:
-                time.sleep(1)  # Wait for 1秒 before retrying
+                time.sleep(1)  # Wait for 1s before retrying
             else:
                 logging.error('Max retries reached for prompt: ' + prompt)
-                return "Error"
+                return "Error", "error"
 
 
 
-def ChatGPT_API(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
+def ChatGPT_API(model, prompt, api_key=None, chat_history=None):
+    """
+    Synchronous chat completion API.
+    Uses LiteLLM to support multiple LLM providers.
+    
+    Args:
+        model: Model string (e.g., "gpt-4o", "claude-3-opus-20240229", "gemini/gemini-pro")
+        prompt: User prompt
+        api_key: API key (optional, uses environment variables if not provided)
+        chat_history: Previous conversation history
+    
+    Returns:
+        Response content string
+    """
     max_retries = 10
-    client = openai.OpenAI(api_key=api_key)
+    
+    # Build messages list
+    if chat_history:
+        messages = chat_history.copy()
+        messages.append({"role": "user", "content": prompt})
+    else:
+        messages = [{"role": "user", "content": prompt}]
+    
     for i in range(max_retries):
         try:
-            if chat_history:
-                messages = chat_history
-                messages.append({"role": "user", "content": prompt})
-            else:
-                messages = [{"role": "user", "content": prompt}]
-            
-            response = client.chat.completions.create(
+            response = litellm.completion(
                 model=model,
                 messages=messages,
                 temperature=0,
+                api_key=api_key,
             )
-   
             return response.choices[0].message.content
         except Exception as e:
             print('************* Retrying *************')
             logging.error(f"Error: {e}")
             if i < max_retries - 1:
-                time.sleep(1)  # Wait for 1秒 before retrying
+                time.sleep(1)  # Wait for 1s before retrying
             else:
                 logging.error('Max retries reached for prompt: ' + prompt)
                 return "Error"
             
 
-async def ChatGPT_API_async(model, prompt, api_key=CHATGPT_API_KEY):
+async def ChatGPT_API_async(model, prompt, api_key=None):
+    """
+    Asynchronous chat completion API.
+    Uses LiteLLM to support multiple LLM providers.
+    
+    Args:
+        model: Model string (e.g., "gpt-4o", "claude-3-opus-20240229", "gemini/gemini-pro")
+        prompt: User prompt
+        api_key: API key (optional, uses environment variables if not provided)
+    
+    Returns:
+        Response content string
+    """
     max_retries = 10
     messages = [{"role": "user", "content": prompt}]
+    
     for i in range(max_retries):
         try:
-            async with openai.AsyncOpenAI(api_key=api_key) as client:
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=0,
-                )
-                return response.choices[0].message.content
+            response = await litellm.acompletion(
+                model=model,
+                messages=messages,
+                temperature=0,
+                api_key=api_key,
+            )
+            return response.choices[0].message.content
         except Exception as e:
             print('************* Retrying *************')
             logging.error(f"Error: {e}")
