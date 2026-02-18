@@ -5,6 +5,7 @@ import logging
 import os
 from datetime import datetime
 import time
+import random
 import json
 import PyPDF2
 import copy
@@ -251,15 +252,20 @@ def ChatGPT_API_with_finish_reason(model, prompt, response_format=None, api_key=
                 return parsed, finish_reason
             return response.choices[0].message.content, finish_reason
 
+        except litellm.AuthenticationError as e:
+            logging.error(f"Authentication error (not retryable): {e}")
+            return "Error", "error"
         except Exception as e:
-            print('************* Retrying *************')
-            logging.error(f"Error: {e}")
-            if i < max_retries - 1:
-                time.sleep(1)  # Wait for 1s before retrying
-            else:
+            if i >= max_retries - 1:
                 logging.error('Max retries reached for prompt: ' + prompt)
                 return "Error", "error"
-
+            if isinstance(e, litellm.RateLimitError):
+                delay = min(2 ** (i + 2), 120) + random.uniform(0, 2)
+            else:
+                delay = min(2 ** i, 60) + random.uniform(0, 1)
+            print(f'************* Retrying in {delay:.1f}s (attempt {i+1}/{max_retries}) *************')
+            logging.error(f"Error: {e}")
+            time.sleep(delay)
 
 
 def ChatGPT_API(model, prompt, response_format=None, api_key=None, chat_history=None):
@@ -302,15 +308,21 @@ def ChatGPT_API(model, prompt, response_format=None, api_key=None, chat_history=
             if response_format and isinstance(response_format, type) and issubclass(response_format, BaseModel):
                 return response_format.model_validate_json(response.choices[0].message.content)
             return response.choices[0].message.content
+        except litellm.AuthenticationError as e:
+            logging.error(f"Authentication error (not retryable): {e}")
+            return "Error"
         except Exception as e:
-            print('************* Retrying *************')
-            logging.error(f"Error: {e}")
-            if i < max_retries - 1:
-                time.sleep(1)  # Wait for 1s before retrying
-            else:
+            if i >= max_retries - 1:
                 logging.error('Max retries reached for prompt: ' + prompt)
                 return "Error"
-            
+            if isinstance(e, litellm.RateLimitError):
+                delay = min(2 ** (i + 2), 120) + random.uniform(0, 2)
+            else:
+                delay = min(2 ** i, 60) + random.uniform(0, 1)
+            print(f'************* Retrying in {delay:.1f}s (attempt {i+1}/{max_retries}) *************')
+            logging.error(f"Error: {e}")
+            time.sleep(delay)
+
 
 async def ChatGPT_API_async(model, prompt, response_format=None, api_key=None):
     """
@@ -345,14 +357,20 @@ async def ChatGPT_API_async(model, prompt, response_format=None, api_key=None):
             if response_format and isinstance(response_format, type) and issubclass(response_format, BaseModel):
                 return response_format.model_validate_json(response.choices[0].message.content)
             return response.choices[0].message.content
+        except litellm.AuthenticationError as e:
+            logging.error(f"Authentication error (not retryable): {e}")
+            return "Error"
         except Exception as e:
-            print('************* Retrying *************')
-            logging.error(f"Error: {e}")
-            if i < max_retries - 1:
-                await asyncio.sleep(1)  # Wait for 1s before retrying
-            else:
+            if i >= max_retries - 1:
                 logging.error('Max retries reached for prompt: ' + prompt)
                 return "Error"
+            if isinstance(e, litellm.RateLimitError):
+                delay = min(2 ** (i + 2), 120) + random.uniform(0, 2)
+            else:
+                delay = min(2 ** i, 60) + random.uniform(0, 1)
+            print(f'************* Retrying in {delay:.1f}s (attempt {i+1}/{max_retries}) *************')
+            logging.error(f"Error: {e}")
+            await asyncio.sleep(delay)
             
             
 def get_json_content(response):
