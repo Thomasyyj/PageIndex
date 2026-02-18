@@ -41,3 +41,9 @@ if_add_node_id: "yes"
 if_add_node_summary: "yes"
 if_add_doc_description: "no"
 if_add_node_text: "no"
+pdf_parser: "docling"  # Options: PyPDF2, PyMuPDF, docling
+use_gpu: False
+do_ocr: True
+do_table_structure: True
+do_cell_matching: True
+tokenizer_model: "o200k_base"
