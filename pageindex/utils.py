@@ -491,7 +491,7 @@ def get_last_node(structure):
     return structure[-1]
 
 
-def extract_text_from_pdf(input_doc_path, pdf_parser="docling", use_gpu=False, num_threads=8, do_ocr=True, do_table_structure=True, do_cell_matching=True):
+def extract_text_from_pdf(input_doc_path, pdf_parser="PyMuPDF", use_gpu=False, num_threads=8, do_ocr=True, do_table_structure=True, do_cell_matching=True):
     reader = PDFReader(
         input_doc_path,
         parser=pdf_parser,
@@ -503,7 +503,7 @@ def extract_text_from_pdf(input_doc_path, pdf_parser="docling", use_gpu=False, n
     )
     return reader.export_to_markdown()
 
-def read_pdf(input_doc_path, pdf_parser="docling", output_format="full", use_gpu=False, num_threads=8, do_ocr=True, do_table_structure=True, do_cell_matching=True):
+def read_pdf(input_doc_path, pdf_parser="PyMuPDF", output_format="full", use_gpu=False, num_threads=8, do_ocr=True, do_table_structure=True, do_cell_matching=True):
     reader = PDFReader(
         input_doc_path,
         parser=pdf_parser,
@@ -525,7 +525,7 @@ def get_pdf_title(pdf_path):
     title = meta.title if meta and meta.title else 'Untitled'
     return title
 
-def get_text_of_pages(pdf_path, start_page, end_page, tag=True, pdf_parser="docling", use_gpu=False, num_threads=8, do_ocr=True, do_table_structure=True):
+def get_text_of_pages(pdf_path, start_page, end_page, tag=True, pdf_parser="PyMuPDF", use_gpu=False, num_threads=8, do_ocr=True, do_table_structure=True):
     reader = PDFReader(
         pdf_path,
         parser=pdf_parser,
@@ -693,7 +693,7 @@ def add_preface_if_needed(data):
 
 
 
-def get_page_tokens(pdf_path, tokenizer_model="o200k_base", pdf_parser="docling", use_gpu=False, do_ocr=True, do_table_structure=True, do_cell_matching=True):
+def get_page_tokens(pdf_path, tokenizer_model="o200k_base", pdf_parser="PyMuPDF", use_gpu=False, do_ocr=True, do_table_structure=True, do_cell_matching=True):
     enc = tiktoken.get_encoding(tokenizer_model)
 
     reader = PDFReader(
@@ -879,11 +879,11 @@ def add_node_text_with_labels(node, pdf_pages):
 
 
 async def generate_node_summary(node, model=None):
-    prompt = f"""You are given a part of a document, your task is to generate a description of the partial document about what are main points covered in the partial document.
+    prompt = f"""你将收到一份文档的部分内容，请用中文概括这部分文档涵盖的要点。
 
-    Partial Document Text: {node['text']}
-    
-    Directly return the description, do not include any other text.
+    文档内容: {node['text']}
+
+    直接返回中文概括，不要输出任何其他内容。
     """
     response = await ChatGPT_API_async(model, prompt)
     return response
@@ -923,12 +923,11 @@ def create_clean_structure_for_description(structure):
 
 
 def generate_doc_description(structure, model=None):
-    prompt = f"""Your are an expert in generating descriptions for a document.
-    You are given a structure of a document. Your task is to generate a one-sentence description for the document, which makes it easy to distinguish the document from other documents.
-        
-    Document Structure: {structure}
-    
-    Directly return the description, do not include any other text.
+    prompt = f"""你是一位文档摘要专家。请根据以下文档结构，用中文生成一句话描述，使该文档能与其他文档区分开来。
+
+    文档结构: {structure}
+
+    直接返回中文描述，不要输出任何其他内容。
     """
     response = ChatGPT_API(model, prompt)
     return response
