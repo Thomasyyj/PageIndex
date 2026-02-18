@@ -10,7 +10,8 @@ if __name__ == "__main__":
     parser.add_argument('--pdf_path', type=str, help='Path to the PDF file')
     parser.add_argument('--md_path', type=str, help='Path to the Markdown file')
 
-    parser.add_argument('--model', type=str, default='gpt-4o-2024-11-20', help='Model to use')
+    parser.add_argument('--model', type=str, help='Model to use')
+    parser.add_argument('--pdf-parser', type=str, help='PDF parser (PyMuPDF, PyPDF2, docling)')
 
     parser.add_argument('--toc-check-pages', type=int, default=20, 
                       help='Number of pages to check for table of contents (PDF only)')
@@ -51,17 +52,23 @@ if __name__ == "__main__":
             raise ValueError(f"PDF file not found: {args.pdf_path}")
             
         # Process PDF file
-        # Configure options
-        opt = config(
-            model=args.model,
-            toc_check_page_num=args.toc_check_pages,
-            max_page_num_each_node=args.max_pages_per_node,
-            max_token_num_each_node=args.max_tokens_per_node,
-            if_add_node_id=args.if_add_node_id,
-            if_add_node_summary=args.if_add_node_summary,
-            if_add_doc_description=args.if_add_doc_description,
-            if_add_node_text=args.if_add_node_text
-        )
+        # Use ConfigLoader for consistent defaults from config.yaml
+        from pageindex.utils import ConfigLoader
+        user_opt = {
+            'toc_check_page_num': args.toc_check_pages,
+            'max_page_num_each_node': args.max_pages_per_node,
+            'max_token_num_each_node': args.max_tokens_per_node,
+            'if_add_node_id': args.if_add_node_id,
+            'if_add_node_summary': args.if_add_node_summary,
+            'if_add_doc_description': args.if_add_doc_description,
+            'if_add_node_text': args.if_add_node_text,
+        }
+        # Only override config.yaml defaults if CLI args are explicitly provided
+        if args.model is not None:
+            user_opt['model'] = args.model
+        if args.pdf_parser is not None:
+            user_opt['pdf_parser'] = args.pdf_parser
+        opt = ConfigLoader().load(user_opt)
 
         # Process the PDF
         toc_with_page_number = page_index_main(args.pdf_path, opt)

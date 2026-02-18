@@ -151,7 +151,12 @@ pip3 install --upgrade -r requirements.txt
 
 PageIndex now supports multiple LLM providers via [LiteLLM](https://docs.litellm.ai/). Create a `.env` file in the root directory and add your API key:
 
-**OpenAI (default):**
+**Google Gemini (default):**
+```bash
+GEMINI_API_KEY=your_google_key_here
+```
+
+**OpenAI:**
 ```bash
 OPENAI_API_KEY=your_openai_key_here
 # or
@@ -161,11 +166,6 @@ CHATGPT_API_KEY=your_openai_key_here
 **Anthropic Claude:**
 ```bash
 ANTHROPIC_API_KEY=your_anthropic_key_here
-```
-
-**Google Gemini:**
-```bash
-GEMINI_API_KEY=your_google_key_here
 ```
 
 **Azure OpenAI:**
@@ -193,7 +193,7 @@ No API key needed. Just ensure Ollama is running locally.
 ### 3. Run PageIndex on your PDF
 
 ```bash
-python3 run_pageindex.py --pdf_path /path/to/your/document.pdf
+python3 run_pageindex.py --pdf_path /path/to/your/document.pdf --model gemini/gemini-2.5-flash
 ```
 
 <details>
@@ -202,11 +202,11 @@ python3 run_pageindex.py --pdf_path /path/to/your/document.pdf
 You can customize the processing with additional optional arguments:
 
 ```
---model                 LLM model to use (default: gpt-4o-2024-11-20)
+--model                 LLM model to use (default: gemini/gemini-2.5-flash)
                         Examples:
+                          - Gemini: gemini/gemini-2.5-flash, gemini/gemini-2.5-pro
                           - OpenAI: gpt-4o, gpt-4-turbo
                           - Claude: claude-3-opus-20240229, claude-3-sonnet-20240229
-                          - Gemini: gemini/gemini-pro, gemini/gemini-1.5-pro
                           - Azure: azure/your-deployment-name
                           - Bedrock: bedrock/anthropic.claude-3-opus-20240229-v1:0
                           - Groq: groq/llama-3.1-70b-versatile
@@ -217,6 +217,12 @@ You can customize the processing with additional optional arguments:
 --if-add-node-id        Add node ID (yes/no, default: yes)
 --if-add-node-summary   Add node summary (yes/no, default: yes)
 --if-add-doc-description Add doc description (yes/no, default: yes)
+--pdf-parser            PDF parser to use (default: PyMuPDF)
+                        Options: PyMuPDF, PyPDF2, docling
+                        - PyMuPDF: fast, lightweight, good for text-based PDFs
+                        - PyPDF2: basic text extraction
+                        - docling: AI-powered, best for scanned/complex PDFs
+                          (requires local model download ~1-2GB, slower)
 ```
 </details>
 

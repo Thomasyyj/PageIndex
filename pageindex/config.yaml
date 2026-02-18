@@ -4,17 +4,17 @@
 # PageIndex now supports multiple LLM providers via LiteLLM.
 # Set the model string according to your preferred provider:
 #
-# OpenAI (default):
+# Google Gemini (default):
+#   model: "gemini/gemini-2.5-flash" or "gemini/gemini-2.5-pro"
+#   Env var: GEMINI_API_KEY
+#
+# OpenAI:
 #   model: "gpt-4o-2024-11-20" or "gpt-4o" or "gpt-4-turbo"
 #   Env var: OPENAI_API_KEY or CHATGPT_API_KEY
 #
 # Anthropic Claude:
 #   model: "claude-3-opus-20240229" or "claude-3-sonnet-20240229"
 #   Env var: ANTHROPIC_API_KEY
-#
-# Google Gemini:
-#   model: "gemini/gemini-pro" or "gemini/gemini-1.5-pro"
-#   Env var: GEMINI_API_KEY
 #
 # Azure OpenAI:
 #   model: "azure/your-deployment-name"
@@ -33,7 +33,7 @@
 #
 # For more providers, see: https://docs.litellm.ai/docs/providers
 
-model: "gpt-4o-2024-11-20"
+model: "gemini/gemini-3-pro-preview"
 toc_check_page_num: 20
 max_page_num_each_node: 10
 max_token_num_each_node: 20000
@@ -41,7 +41,7 @@ if_add_node_id: "yes"
 if_add_node_summary: "yes"
 if_add_doc_description: "no"
 if_add_node_text: "no"
-pdf_parser: "docling"  # Options: PyPDF2, PyMuPDF, docling
+pdf_parser: "PyMuPDF"  # Options: PyPDF2, PyMuPDF, docling
 use_gpu: False
 do_ocr: True
 do_table_structure: True
